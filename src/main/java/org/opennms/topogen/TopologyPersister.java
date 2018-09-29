@@ -39,6 +39,8 @@ import javax.sql.DataSource;
 import org.opennms.netmgt.model.CdpElement;
 import org.opennms.netmgt.model.CdpLink;
 import org.opennms.netmgt.model.OnmsNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -46,11 +48,13 @@ import com.zaxxer.hikari.HikariDataSource;
 public class TopologyPersister {
 
     private final static String NODES_INSERT = "INSERT INTO node (nodeid, nodelabel, location, nodecreatetime) VALUES (?, ?, ?, now());";
-    private final static String NODES_DELETE = "delete from node where nodeid > 5;";
+    private final static String NODES_DELETE = "delete from node where nodeid > 99;";
     private final static String ELEMENTS_INSERT = "INSERT INTO cdpelement (id, nodeid, cdpglobalrun, cdpglobaldeviceid, cdpnodelastpolltime, cdpnodecreatetime) VALUES (?, ?, ?, ?, ?, now());";
-    private final static String ELEMENTS_DELETE = "delete from cdpelement where nodeid > 5;";
+    private final static String ELEMENTS_DELETE = "delete from cdpelement where nodeid > 99;";
     private final static String LINKS_INSERT = "INSERT INTO cdplink (id, nodeid, cdpcacheifindex, cdpinterfacename, cdpcacheaddresstype, cdpcacheaddress, cdpcacheversion, cdpcachedeviceid, cdpcachedeviceport, cdpcachedeviceplatform, cdplinklastpolltime, cdpcachedeviceindex, cdplinkcreatetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
-    private final static String LINKS_DELETE = "delete from cdplink where nodeid > 5;";
+    private final static String LINKS_DELETE = "delete from cdplink where nodeid > 99;";
+
+    private final static Logger LOG = LoggerFactory.getLogger(TopologyPersister.class);
 
     private DataSource ds;
 
@@ -121,6 +125,10 @@ public class TopologyPersister {
     }
 
     private <T> void batchInsert(String statement, List<T> elements, BiConsumerWithException<PreparedStatement, T> statementFiller) throws SQLException {
+        if(elements.size()==0){
+            return;
+        }
+        LOG.info("inserting {} {}s", elements.size(), elements.get(0).getClass().getSimpleName());
         try (Connection c = ds.getConnection()) {
             try (PreparedStatement insStmt = c.prepareStatement(statement)) {
                 int i;
@@ -137,11 +145,12 @@ public class TopologyPersister {
                     insStmt.executeBatch(); // insert last elements of batch
                 }
             }
-
         }
+        LOG.info("inserting of {} {}s done.", elements.size(), elements.get(0).getClass().getSimpleName());
     }
 
     public void deleteTopology() throws SQLException {
+        LOG.info("deleting existing topology");
         try (Connection c = ds.getConnection()) {
             try (PreparedStatement insStmt = c.prepareStatement(NODES_DELETE)) {
                 insStmt.execute();

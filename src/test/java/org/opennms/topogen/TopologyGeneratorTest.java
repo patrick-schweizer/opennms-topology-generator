@@ -40,14 +40,14 @@ public class TopologyGeneratorTest {
 
     @Test
     public void mainMethodShouldWork() throws Exception {
-        TopologyGenerator.main(new String[]{"-n", "5", "-e", "4", "-l","5"});
+        TopologyGenerator.main(new String[]{"-n", "5", "-e", "4", "-l","5", "-d"});
 
     }
 
     @After
     public void deleteToplogy() throws IOException, SQLException {
         TopologyGenerator generator = new TopologyGenerator();
-        generator.deleteCdpNetwork();
+        generator.deleteExistingToplogy();
     }
 
 }
