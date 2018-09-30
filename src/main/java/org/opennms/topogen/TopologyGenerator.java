@@ -63,9 +63,9 @@ public class TopologyGenerator {
     @Option(name="-d",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks with id >= 100)")
     private boolean deleteExistingTolology = false;
 
-    public TopologyGenerator() throws IOException {
+    public TopologyGenerator(TopologyPersister persister) throws IOException {
         random = new Random(42);
-        persister = new TopologyPersister();
+        persister = persister;
     }
 
     void assertSetup() {
@@ -99,7 +99,7 @@ public class TopologyGenerator {
 
 
     public static void main(String args[]) throws Exception {
-        TopologyGenerator generator = new TopologyGenerator();
+        TopologyGenerator generator = new TopologyGenerator(new TopologyPersister());
         generator.doMain(args);
         generator.assertSetup();
         generator.createCdpNetwork();
