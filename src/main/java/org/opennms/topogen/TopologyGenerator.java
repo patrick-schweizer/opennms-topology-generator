@@ -45,17 +45,23 @@ import org.opennms.netmgt.model.CdpLink;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OspfElement;
 import org.opennms.netmgt.model.monitoringLocations.OnmsMonitoringLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TopologyGenerator {
 
+    private final static Logger LOG = LoggerFactory.getLogger(TopologyGenerator.class);
+
     private TopologyPersister persister;
     private Random random;
-    @Option(name="-n",usage="generate <n> OmnsNodes")
-    private int amountNodes = 2028;
-    @Option(name="-e",usage="generate <e> CdpElements")
-    private int amountElements = 1844;
-    @Option(name="-l",usage="generate <l> CdpLinks")
-    private int amountLinks = 35717;
+    @Option(name="-n",usage="generate <N> OmnsNodes")
+    private int amountNodes = 3;
+    @Option(name="-e",usage="generate <N> CdpElements")
+    private int amountElements = 3;
+    @Option(name="-l",usage="generate <N> CdpLinks")
+    private int amountLinks = 6;
+    @Option(name="-d",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks with id >= 100)")
+    private boolean deleteExistingTolology = false;
 
     public TopologyGenerator() throws IOException {
         random = new Random(42);
@@ -86,7 +92,7 @@ public class TopologyGenerator {
 
 
     private static void assertMoreOrEqualsThan(String message, int expected, int actual) {
-        if (actual <= expected) {
+        if (actual < expected) {
             throw new IllegalArgumentException(message + String.format(" minimum expected=%s but found actual=%s", expected, actual));
         }
     }
@@ -100,6 +106,13 @@ public class TopologyGenerator {
     }
 
     public void createCdpNetwork() throws SQLException {
+        if(deleteExistingTolology){
+            deleteExistingToplogy();
+        }
+        LOG.info("creating topology with {} {}s, {} {}s and {} {}s.",
+                this.amountNodes, OnmsNode.class.getSimpleName() ,
+                this.amountElements, CdpElement.class.getSimpleName(),
+                this.amountLinks, CdpLink.class.getSimpleName());
         OnmsMonitoringLocation location = createMonitoringLocation();
         List<OnmsNode> nodes = createNodes(location);
         persister.persistNodes(nodes);
@@ -189,7 +202,7 @@ public class TopologyGenerator {
         return list.get(random.nextInt(list.size()));
     }
 
-    public void deleteCdpNetwork() throws SQLException {
+    public void deleteExistingToplogy() throws SQLException {
         this.persister.deleteTopology();
     }
 }
