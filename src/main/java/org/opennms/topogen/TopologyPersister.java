@@ -48,11 +48,11 @@ import com.zaxxer.hikari.HikariDataSource;
 public class TopologyPersister {
 
     private final static String NODES_INSERT = "INSERT INTO node (nodeid, nodelabel, location, nodecreatetime) VALUES (?, ?, ?, now());";
-    private final static String NODES_DELETE = "delete from node where nodeid > 99;";
+    private final static String NODES_DELETE = "delete from node;";
     private final static String ELEMENTS_INSERT = "INSERT INTO cdpelement (id, nodeid, cdpglobalrun, cdpglobaldeviceid, cdpnodelastpolltime, cdpnodecreatetime) VALUES (?, ?, ?, ?, ?, now());";
-    private final static String ELEMENTS_DELETE = "delete from cdpelement where nodeid > 99;";
+    private final static String ELEMENTS_DELETE = "delete from cdpelement;";
     private final static String LINKS_INSERT = "INSERT INTO cdplink (id, nodeid, cdpcacheifindex, cdpinterfacename, cdpcacheaddresstype, cdpcacheaddress, cdpcacheversion, cdpcachedeviceid, cdpcachedeviceport, cdpcachedeviceplatform, cdplinklastpolltime, cdpcachedeviceindex, cdplinkcreatetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
-    private final static String LINKS_DELETE = "delete from cdplink where nodeid > 99;";
+    private final static String LINKS_DELETE = "delete from cdplink;";
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyPersister.class);
 
@@ -62,7 +62,7 @@ public class TopologyPersister {
         setUpDatasource();
     }
 
-    public void setUpDatasource() throws IOException {
+    public void setUpDatasource() {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:postgresql://localhost:5432/opennms");
         config.setUsername("opennms");
@@ -111,7 +111,7 @@ public class TopologyPersister {
                 stmt.setString(i++, link.getCdpCacheAddress());
                 stmt.setString(i++, link.getCdpCacheVersion());
                 stmt.setString(i++, link.getCdpCacheDeviceId());
-                stmt.setString(i++, link.getCdpCacheDeviceId());
+                stmt.setString(i++, link.getCdpCacheDevicePort());
                 stmt.setString(i++, link.getCdpCacheDevicePlatform());
                 stmt.setDate(i++, new java.sql.Date(link.getCdpLinkLastPollTime().getTime()));
                 stmt.setInt(i, link.getCdpCacheDeviceIndex());
