@@ -28,63 +28,43 @@
 
 package org.opennms.topogen;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-/* Takes a list and generates pairs among its emelents. It tries to distribute the pairs equally as in as least same
-/* pairs as possible. Pair(a,b) counts as equal to Pair(b,a)  */
-public class UndirectedPairGenerator<E> implements PairGenerator<E> {
-
+/** pairs elements randomly but not the same element to itself */
+public class RandomConnectedPairGenerator<E> implements PairGenerator<E>{
     private final List<E> elements;
-    private final int lastIndexInList;
-    private int indexLeft = 0;
-    private int indexRight = 0;
+    private Random random = new Random(42);
 
-    @Override
-    public Pair<E, E> next(){
-        computeIndexForUnique();
-        return Pair.of(elements.get(indexLeft), elements.get(indexRight));
-    }
-
-    UndirectedPairGenerator(List<E> elements){
+    RandomConnectedPairGenerator(List<E> elements){
         if(elements == null || elements.size()<2){
             throw new IllegalArgumentException("Need at least 2 elements in list to make a pair");
         }
+        if(new HashSet<>(elements).size() < elements.size()){
+            throw new IllegalArgumentException("List contains at least one duplicate");
+        }
         this.elements = elements;
-        lastIndexInList = elements.size() - 1;
     }
 
-    private void computeIndexForUnique(){
-        computeIndex();
-        while(indexLeft >= indexRight) {
-            computeIndex(); // jump over doubles
-        }
+    @Override
+    public Pair<E, E> next(){
+        E leftElement = getRandomElement(elements);
+        E rightElement = getRandomElementButNotSame(elements, leftElement);
+        return Pair.of(leftElement, rightElement);
     }
 
-    private void computeIndex() {
-        if(indexLeft == lastIndexInList && this.indexRight == lastIndexInList-1){
-            // start from beginning
-            this.indexLeft = 0;
-            this.indexRight = 0;
-        } else if(this.indexRight == lastIndexInList){
-            this.indexLeft = next(this.indexLeft);
-        }
-        this.indexRight = nextButNotSame(this.indexRight, this.indexLeft);
-    }
-
-    private int nextButNotSame(int current, int notSame){
-        int value = next(current);
-        if(value == notSame){
-            value = next(value);
+    private E getRandomElementButNotSame(List<E> elements,  E notSame){
+        E value = getRandomElement(elements);
+        while (value.equals(notSame)){
+            value = getRandomElement(elements);
         }
         return value;
     }
 
-    private int next(int i){
-        if(i==lastIndexInList){
-            return 0;
-        }
-        return ++i;
+    private E getRandomElement(List<E> list) {
+        return list.get(random.nextInt(list.size()));
     }
 }

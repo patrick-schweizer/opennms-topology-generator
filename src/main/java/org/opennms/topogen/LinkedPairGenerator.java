@@ -32,53 +32,31 @@ import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-/* Takes a list and generates pairs among its emelents. It tries to distribute the pairs equally as in as least same
-/* pairs as possible. Pair(a,b) counts as equal to Pair(b,a)  */
-public class UndirectedPairGenerator<E> implements PairGenerator<E> {
+public class LinkedPairGenerator<E> implements PairGenerator<E>{
 
     private final List<E> elements;
     private final int lastIndexInList;
-    private int indexLeft = 0;
+    private int indexLeft = -1;
     private int indexRight = 0;
 
     @Override
     public Pair<E, E> next(){
-        computeIndexForUnique();
+        compute();
         return Pair.of(elements.get(indexLeft), elements.get(indexRight));
     }
 
-    UndirectedPairGenerator(List<E> elements){
+    LinkedPairGenerator(List<E> elements){
         if(elements == null || elements.size()<2){
             throw new IllegalArgumentException("Need at least 2 elements in list to make a pair");
         }
         this.elements = elements;
         lastIndexInList = elements.size() - 1;
+
     }
 
-    private void computeIndexForUnique(){
-        computeIndex();
-        while(indexLeft >= indexRight) {
-            computeIndex(); // jump over doubles
-        }
-    }
-
-    private void computeIndex() {
-        if(indexLeft == lastIndexInList && this.indexRight == lastIndexInList-1){
-            // start from beginning
-            this.indexLeft = 0;
-            this.indexRight = 0;
-        } else if(this.indexRight == lastIndexInList){
-            this.indexLeft = next(this.indexLeft);
-        }
-        this.indexRight = nextButNotSame(this.indexRight, this.indexLeft);
-    }
-
-    private int nextButNotSame(int current, int notSame){
-        int value = next(current);
-        if(value == notSame){
-            value = next(value);
-        }
-        return value;
+    private void compute() {
+        indexLeft = next(indexLeft);
+        indexRight = next(indexRight);
     }
 
     private int next(int i){
@@ -87,4 +65,5 @@ public class UndirectedPairGenerator<E> implements PairGenerator<E> {
         }
         return ++i;
     }
+
 }

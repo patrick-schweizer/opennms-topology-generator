@@ -38,37 +38,24 @@ import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 
-
-public class UndirectedPairGeneratorTest {
+public class LinkedPairGeneratorTest {
     @Test
     void shouldRejectListsWithLessThan2Elements() {
-        assertThrows(IllegalArgumentException.class, () -> new UndirectedPairGenerator<>(null));
-        assertThrows(IllegalArgumentException.class, () -> new UndirectedPairGenerator<>(Collections.emptyList()));
+        assertThrows(IllegalArgumentException.class, () -> new LinkedPairGenerator<>(null));
+        assertThrows(IllegalArgumentException.class, () -> new LinkedPairGenerator<>(Collections.emptyList()));
     }
 
     @Test
-    void shouldProduceASequenceOfUniquePairs(){
+    void shouldProduceASequenceOfUniquePairs() {
         List<String> list = Arrays.asList("1", "2", "3", "4", "5");
-        UndirectedPairGenerator gen = new UndirectedPairGenerator<>(list);
+        LinkedPairGenerator gen = new LinkedPairGenerator<>(list);
         assertEquals(Pair.of("1", "2"), gen.next());
-        assertEquals(Pair.of("1", "3"), gen.next());
-        assertEquals(Pair.of("1", "4"), gen.next());
-        assertEquals(Pair.of("1", "5"), gen.next());
-        // 2,1 would be double
         assertEquals(Pair.of("2", "3"), gen.next());
-        assertEquals(Pair.of("2", "4"), gen.next());
-        assertEquals(Pair.of("2", "5"), gen.next());
-        // 3, 1 would be double
-        // 3, 2 would be double
         assertEquals(Pair.of("3", "4"), gen.next());
-        assertEquals(Pair.of("3", "5"), gen.next());
-        // 4, 1 would be double
-        // 4, 2 would be double
-        // 4, 3 would be double
         assertEquals(Pair.of("4", "5"), gen.next());
-        // all of 5,x would be double
+        assertEquals(Pair.of("5", "1"), gen.next());
         // and it starts from the beginning again:
         assertEquals(Pair.of("1", "2"), gen.next());
-        assertEquals(Pair.of("1", "3"), gen.next());
+        assertEquals(Pair.of("2", "3"), gen.next());
     }
 }

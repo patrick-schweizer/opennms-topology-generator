@@ -49,17 +49,26 @@ import org.opennms.netmgt.model.monitoringLocations.OnmsMonitoringLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.Setter;
+
 public class TopologyGenerator {
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyGenerator.class);
 
+    private enum Topology{
+        ring, random, complete
+    }
+
     private TopologyPersister persister;
     @Option(name="--nodes",usage="generate <N> OmnsNodes")
-    private int amountNodes = 3;
+    private int amountNodes = 10;
     @Option(name="--elements",usage="generate <N> CdpElements")
     private int amountElements = -1;
     @Option(name="--links",usage="generate <N> CdpLinks")
     private int amountLinks = -1;
+    @Option(name="--topology",usage="type of topology (complete | ring | random), default = random")
+    @Setter
+    private String topology = "random";
     @Option(name="--delete",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks)")
     private boolean deleteExistingTolology = false;
 
@@ -67,7 +76,7 @@ public class TopologyGenerator {
         this.persister = persister;
     }
 
-    private void assertSetup() {
+    void assertSetup() {
         if(amountElements == -1){
             amountElements = amountNodes;
         }
@@ -79,10 +88,12 @@ public class TopologyGenerator {
         assertMoreOrEqualsThan("we need at least 2 nodes", 2, amountNodes);
         assertMoreOrEqualsThan("we need at least 2 elements", 2, amountElements);
         assertMoreOrEqualsThan("we need at least 1 link", 1, amountLinks);
+
+        Topology.valueOf(topology); // check if valid parameter
     }
 
 
-    private void doMain(String[] args) throws IOException {
+    private void doMain(String[] args) {
         CmdLineParser parser = new CmdLineParser(this);
         try {
             parser.parseArgument(args);
@@ -114,7 +125,8 @@ public class TopologyGenerator {
         if(deleteExistingTolology){
             deleteExistingToplogy();
         }
-        LOG.info("creating topology with {} {}s, {} {}s and {} {}s.",
+        LOG.info("creating {} topology with {} {}s, {} {}s and {} {}s.",
+                this.topology,
                 this.amountNodes, OnmsNode.class.getSimpleName() ,
                 this.amountElements, CdpElement.class.getSimpleName(),
                 this.amountLinks, CdpLink.class.getSimpleName());
@@ -172,12 +184,12 @@ public class TopologyGenerator {
     }
 
     private List<CdpLink> createCdpLinks(List<CdpElement> cdpElements) {
-        UndirectedPairGenerator<CdpElement> pairs = new UndirectedPairGenerator<>(cdpElements);
+        PairGenerator<CdpElement> pairs = createPairGenerator(cdpElements);
         List<CdpLink> links = new ArrayList<>();
         for (int i = 0; i < amountLinks; i++) {
 
             // We create 2 links that reference each other, see also LinkdToplologyProvider.matchCdpLinks()
-            Pair<CdpElement, CdpElement> pair = pairs.getNextPair();
+            Pair<CdpElement, CdpElement> pair = pairs.next();
             CdpElement sourceCdpElement = pair.getLeft();
             CdpElement targetCdpElement = pair.getRight();
             CdpLink sourceLink = createCdpLink(i++,
@@ -203,6 +215,18 @@ public class TopologyGenerator {
         return links;
     }
 
+    private PairGenerator<CdpElement> createPairGenerator(List<CdpElement> elements){
+        if(Topology.complete.name().equals(topology)){
+            return new UndirectedPairGenerator<>(elements);
+        } else if(Topology.ring.name().equals(topology)) {
+            return new LinkedPairGenerator<>(elements);
+        } else if (Topology.random.name().equals(topology)){
+            return new RandomConnectedPairGenerator<>(elements);
+        } else {
+            throw new IllegalArgumentException("unknown topology: "+ topology);
+        }
+    }
+
     private CdpLink createCdpLink(int id, OnmsNode node, String cdpInterfaceName, String cdpCacheDevicePort,
                                   String cdpCacheDeviceId) {
         CdpLink link = new CdpLink();
@@ -220,6 +244,7 @@ public class TopologyGenerator {
         link.setCdpLinkLastPollTime(new Date());
         return link;
     }
+
 
     public void deleteExistingToplogy() throws SQLException {
         this.persister.deleteTopology();
