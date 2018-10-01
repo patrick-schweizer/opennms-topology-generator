@@ -35,8 +35,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Random;
+import java.util.UUID;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -53,22 +54,26 @@ public class TopologyGenerator {
     private final static Logger LOG = LoggerFactory.getLogger(TopologyGenerator.class);
 
     private TopologyPersister persister;
-    private Random random;
-    @Option(name="-n",usage="generate <N> OmnsNodes")
+    @Option(name="--nodes",usage="generate <N> OmnsNodes")
     private int amountNodes = 3;
-    @Option(name="-e",usage="generate <N> CdpElements")
-    private int amountElements = 3;
-    @Option(name="-l",usage="generate <N> CdpLinks")
-    private int amountLinks = 6;
-    @Option(name="-d",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks with id >= 100)")
+    @Option(name="--elements",usage="generate <N> CdpElements")
+    private int amountElements = -1;
+    @Option(name="--links",usage="generate <N> CdpLinks")
+    private int amountLinks = -1;
+    @Option(name="--delete",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks)")
     private boolean deleteExistingTolology = false;
 
-    public TopologyGenerator() throws IOException {
-        random = new Random(42);
-        persister = new TopologyPersister();
+    public TopologyGenerator(TopologyPersister persister) throws IOException {
+        this.persister = persister;
     }
 
-    void assertSetup() {
+    private void assertSetup() {
+        if(amountElements == -1){
+            amountElements = amountNodes;
+        }
+        if(amountLinks == -1){
+            amountLinks = (amountElements * amountElements)-amountElements;
+        }
         // do basic checks to get configuration right:
         assertMoreOrEqualsThan("we need at least as many nodes as elements", amountElements, amountNodes);
         assertMoreOrEqualsThan("we need at least 2 nodes", 2, amountNodes);
@@ -99,13 +104,13 @@ public class TopologyGenerator {
 
 
     public static void main(String args[]) throws Exception {
-        TopologyGenerator generator = new TopologyGenerator();
+        TopologyGenerator generator = new TopologyGenerator(new TopologyPersister());
         generator.doMain(args);
         generator.assertSetup();
         generator.createCdpNetwork();
     }
 
-    public void createCdpNetwork() throws SQLException {
+    private void createCdpNetwork() throws SQLException {
         if(deleteExistingTolology){
             deleteExistingToplogy();
         }
@@ -141,8 +146,8 @@ public class TopologyGenerator {
     private OnmsNode createNode(int count, OnmsMonitoringLocation location) {
 
         OnmsNode node = new OnmsNode();
-        node.setId(100 + count); // we assume we have an empty database and can just generate the ids
-        node.setLabel("myNode" + count);
+        node.setId(count); // we assume we have an empty database and can just generate the ids
+        node.setLabel("Node" + count);
         node.setLocation(location);
         return node;
     }
@@ -167,20 +172,39 @@ public class TopologyGenerator {
     }
 
     private List<CdpLink> createCdpLinks(List<CdpElement> cdpElements) {
+        UndirectedPairGenerator<CdpElement> pairs = new UndirectedPairGenerator<>(cdpElements);
         List<CdpLink> links = new ArrayList<>();
         for (int i = 0; i < amountLinks; i++) {
 
-            CdpLink cdpLink = createCdpLink(i,
-                    getRandom(cdpElements).getNode(),
-                    getRandom(cdpElements).getCdpGlobalDeviceId(),
-                    Integer.toString(amountLinks - i - 1),
-                    Integer.toString(i));
-            links.add(cdpLink);
+            // We create 2 links that reference each other, see also LinkdToplologyProvider.matchCdpLinks()
+            Pair<CdpElement, CdpElement> pair = pairs.getNextPair();
+            CdpElement sourceCdpElement = pair.getLeft();
+            CdpElement targetCdpElement = pair.getRight();
+            CdpLink sourceLink = createCdpLink(i++,
+                    sourceCdpElement.getNode(),
+                    UUID.randomUUID().toString(),
+                    UUID.randomUUID().toString(),
+                    targetCdpElement.getCdpGlobalDeviceId()
+            );
+            links.add(sourceLink);
+
+            String targetCdpCacheDevicePort = sourceLink.getCdpInterfaceName();
+            String targetCdpInterfaceName = sourceLink.getCdpCacheDevicePort();
+            String targetCdpGlobalDeviceId = sourceCdpElement.getCdpGlobalDeviceId();
+            CdpLink targetLink = createCdpLink(i,
+                    targetCdpElement.getNode(),
+                    targetCdpInterfaceName,
+                    targetCdpCacheDevicePort,
+                    targetCdpGlobalDeviceId
+                    );
+            links.add(targetLink);
+            LOG.debug("Linked node {} with node {}", sourceCdpElement.getNode().getLabel(), targetCdpElement.getNode().getLabel());
         }
         return links;
     }
 
-    private CdpLink createCdpLink(int id, OnmsNode node, String cdpCacheDeviceId, String cdpInterfaceName, String cdpCacheDevicePort) {
+    private CdpLink createCdpLink(int id, OnmsNode node, String cdpInterfaceName, String cdpCacheDevicePort,
+                                  String cdpCacheDeviceId) {
         CdpLink link = new CdpLink();
         link.setId(id);
         link.setCdpCacheDeviceId(cdpCacheDeviceId);
@@ -190,7 +214,6 @@ public class TopologyGenerator {
         link.setCdpCacheAddressType(CdpLink.CiscoNetworkProtocolType.chaos);
         link.setCdpCacheAddress("CdpCacheAddress");
         link.setCdpCacheDeviceIndex(33);
-        link.setCdpCacheDeviceId("CdpCachDeviceId");
         link.setCdpCacheDevicePlatform("CdpCacheDevicePlatform");
         link.setCdpCacheIfIndex(33);
         link.setCdpCacheVersion("CdpCacheVersion");
@@ -198,12 +221,7 @@ public class TopologyGenerator {
         return link;
     }
 
-    private <E> E getRandom(List<E> list) {
-        return list.get(random.nextInt(list.size()));
-    }
-
     public void deleteExistingToplogy() throws SQLException {
         this.persister.deleteTopology();
     }
 }
-
